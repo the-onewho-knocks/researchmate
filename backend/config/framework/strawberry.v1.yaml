@@ -1,1 +1,144 @@
-# TODO: define 9 components, each criterion with id, name, tier (A/B/C), rule + params, ml_label, hint
+version: "1.0"
+components:
+- key: title
+  name: Title
+  acronym: SPICE
+  section: title
+  criteria:
+  - {id: SP1, name: Specific, tier: C, hint: "Does the title name the specific topic rather than a broad field?"}
+  - {id: SP2, name: Precise, tier: C, hint: "Does every word carry information (no filler or vague terms)?"}
+  - {id: SP3, name: Interesting, tier: C, hint: "Would the desired readership want to read this paper based on the title?"}
+  - {id: SP4, name: Compact, tier: A, rule: title_compact, params: {min_words: 4, max_words: 20}, hint: "4-20 words and no filler such as 'a study of'."}
+  - {id: SP5, name: Easy to understand, tier: C, hint: "Can a reader in the field understand the title without decoding jargon?"}
+
+- key: abstract
+  name: Abstract
+  acronym: The-5-S
+  section: abstract
+  criteria:
+  - {id: T1, name: Short, tier: A, rule: word_count_between, params: {min: 100, max: 300}, hint: "Typically 100-300 words (check the venue's limit)."}
+  - {id: T2, name: Self-contained, tier: A, rule: abstract_self_contained, hint: "No references to figures, sections, tables or citations."}
+  - {id: T3, name: Specific, tier: C, hint: "Specific enough for experts to see the difference to existing approaches, general enough for non-experts."}
+  - id: T4
+    name: Statement of novelty
+    tier: B
+    rule: any_pattern
+    ml_label: novelty_claim
+    params: {patterns: ['\bwe (propose|present|introduce|develop|devise|design)\b', '\bnovel\b', '\bnovelty\b', '\bfirst\b', '\bnew (approach|method|framework|technique|algorithm)\b']}
+    hint: "Does the abstract state what is new?"
+  - {id: T5, name: Summary of most important results, tier: B, rule: abstract_results_summary, ml_label: result_with_numbers, hint: "Does the abstract summarize the key results, ideally with numbers?"}
+
+- key: related_work
+  name: Related Work
+  acronym: RICK
+  section: related_work
+  criteria:
+  - {id: R1, name: Recent papers cited, tier: A, rule: recent_ref_share, params: {years: 5, min_share: 0.3}, hint: "A reasonable share of references should be from the last 5 years."}
+  - id: R2
+    name: Improvement of own work w.r.t. related work shown
+    tier: B
+    rule: any_pattern
+    params: {patterns: ['\boutperform', '\bimprov', '\bbetter than\b', '\bsuperior\b', '\badvantages?\b', '\bgoes? beyond\b', '\bextends?\b']}
+    hint: "Is it shown how the own work improves on or extends previous work?"
+  - {id: R3, name: Contrasted to own work, tier: B, rule: contrast_with_own_work, hint: "Is previous work explicitly contrasted with the own paper?"}
+  - id: R4
+    name: Knowledge gap deduced
+    tier: B
+    rule: any_pattern
+    ml_label: research_gap
+    params: {patterns: ['\bhowever\b', '\black(s|ing)?\b', '\bno (study|work|approach|paper)\b', '\bnot (yet )?(been )?(addressed|studied|explored|investigated)\b', '\bgap\b', '\bremain(s)? (open|unclear|unexplored)\b']}
+    hint: "Does the section derive an open issue / research gap from the literature?"
+
+- key: introduction
+  name: Introduction
+  acronym: WHWN
+  section: introduction
+  criteria:
+  - id: W1
+    name: Why?
+    tier: B
+    rule: any_pattern
+    ml_label: research_gap
+    params: {patterns: ['\bgap\b', '\bchalleng', '\bstruggle', '\bproblem\b', '\bhowever\b', '\black(s|ing)?\b', '\b(crucial|essential|important)\b', '\bneed\b']}
+    hint: "Is the motivation (problem, gap, relevance) stated?"
+  - id: W2
+    name: How?
+    tier: B
+    rule: any_pattern
+    params: {patterns: ['\bwe (propose|present|investigate|develop|leverage|introduce|use)\b', '\bour (approach|method|idea|framework)\b', '\bthe idea\b', '\bthis paper (proposes|presents|investigates)\b']}
+    hint: "Is it stated how the research question is addressed (approach, method, evaluation)?"
+  - {id: W3, name: What's new?, tier: B, rule: intro_novelty_statement, ml_label: novelty_claim, hint: "Are the novelty and the contributions stated?"}
+
+- key: methods
+  name: Methods
+  acronym: BURNS
+  section: methods
+  criteria:
+  - id: B1
+    name: Backed by acknowledged research methods
+    tier: B
+    rule: any_pattern
+    params: {patterns: ['\bfollowing\b', '\bbased on\b', '\baccording to\b', '\bas (proposed|described|introduced) (in|by)\b', '\[\d+', '\bstandard\b', '\bestablished\b', '\badopt']}
+    hint: "Does the procedure build on cited, established methods?"
+  - {id: B2, name: Understandable, tier: C, hint: "Is it clear how the research was conducted?"}
+  - {id: B3, name: Reproducible, tier: B, rule: methods_reproducibility_cues, hint: "Is the setup (data, parameters, tools, code) described well enough to reproduce?"}
+  - {id: B4, name: Novel, tier: C, hint: "Are the novel aspects of the method made clear?"}
+  - {id: B5, name: Systematic, tier: C, hint: "Does the procedure follow acknowledged steps, or are deviations justified?"}
+
+- key: results
+  name: Results
+  acronym: ELVIRA
+  section: results
+  criteria:
+  - {id: E1, name: Explained, tier: C, hint: "Are results explained in text, not just reported?"}
+  - {id: E2, name: Labelled, tier: A, rule: has_captions, hint: "Figures and tables have captions."}
+  - {id: E3, name: Visually supported, tier: A, rule: results_visual_support, hint: "Results are supported by figures or tables that the text refers to."}
+  - {id: E4, name: Inspire discussion, tier: C, hint: "Are the results specific enough to be analysed and discussed?"}
+  - {id: E5, name: Reproducible, tier: C, hint: "Is the setup behind the results clear enough to reproduce them?"}
+  - {id: E6, name: Address the research question or hypothesis, tier: C, hint: "Do the results answer the stated research question or hypothesis?"}
+
+- key: discussion
+  name: Discussion
+  acronym: REFLOW
+  section: discussion
+  criteria:
+  - id: F1
+    name: Results discussed
+    tier: B
+    rule: any_pattern
+    params: {patterns: ['\bresults? (show|indicate|suggest|demonstrate|confirm)', '\bconsistent with\b', '\bcompared to\b', '\bthis (suggests|indicates|shows)\b', '\bwe (observe|observed|found|find)\b']}
+    hint: "Are the results interpreted and put into context?"
+  - id: F2
+    name: Evaluation conducted
+    tier: B
+    rule: any_pattern
+    params: {patterns: ['\bevaluat', '\bexperiment', '\btested\b', '\bassess', '\bvalidat']}
+    hint: "Is the evaluation of the results/approach discussed?"
+  - id: F3
+    name: Findings stated
+    tier: B
+    rule: any_pattern
+    params: {patterns: ['\bfindings?\b', '\bwe (found|conclude)\b', '\bresults (show|indicate|demonstrate)\b', '\bdemonstrate', '\breveal']}
+    hint: "Are findings deduced and linked to the research question?"
+  - {id: F4, name: Limitations stated, tier: B, rule: limitations_stated, ml_label: limitation, params: {also: [conclusion]}, hint: "Are limitations honestly stated (here or in the conclusion)?"}
+  - {id: F5, name: Open issues identified, tier: B, rule: open_issues_stated, ml_label: future_work, params: {also: [conclusion]}, hint: "Are open issues or future directions identified?"}
+  - {id: F6, name: Work critically evaluated, tier: C, hint: "Do the authors critically assess their own work?"}
+
+- key: conclusion
+  name: Conclusion
+  acronym: RIB
+  section: conclusion
+  criteria:
+  - {id: C1, name: Research summary, tier: B, rule: conclusion_item, params: {item: research_summary}, hint: "Briefly restates the research goal and what was done."}
+  - {id: C2, name: Insights summary, tier: B, rule: conclusion_item, params: {item: insights}, hint: "States the main findings and insights."}
+  - {id: C3, name: Beginning of new research, tier: B, rule: conclusion_item, ml_label: future_work, params: {item: new_research}, hint: "Points to open issues, future work or transferability."}
+
+- key: bibliography
+  name: Bibliography
+  acronym: YEAR
+  section: references
+  criteria:
+  - {id: Y1, name: Your full list of cited work, tier: A, rule: citations_match_refs, hint: "In-text citations and the reference list match."}
+  - {id: Y2, name: Embedding of own work in related work, tier: C, hint: "Do the references embed the own work in the research field?"}
+  - {id: Y3, name: Acknowledged sources, tier: A, rule: venue_or_doi_share, params: {min_share: 0.6}, hint: "References come from journals, conferences or other acknowledged sources."}
+  - {id: Y4, name: Relevant papers, tier: C, hint: "Are the cited papers relevant for the reader and the own statements?"}

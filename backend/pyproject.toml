@@ -1,9 +1,19 @@
 [project]
-name = "strawberry-backend"
+name = "research-backend"
 version = "0.1.0"
-requires-python = ">=3.11"
+requires-python = ">=3.10"
 dependencies = [
-  "fastapi", "uvicorn[standard]", "python-multipart", "pydantic-settings",
-  "pymupdf", "python-docx", "pylatexenc", "pyyaml", "jsonschema",
-  "google-genai", "scikit-learn", "sentence-transformers", "joblib"
+  "fastapi", "uvicorn[standard]", "python-multipart", "pydantic>=2", "pydantic-settings",
+  "pymupdf", "python-docx", "pylatexenc", "pyyaml", "jsonschema", "google-genai",
 ]
+
+[project.optional-dependencies]
+ml = ["sentence-transformers", "scikit-learn", "joblib", "numpy"]
+dev = ["pytest", "httpx"]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
