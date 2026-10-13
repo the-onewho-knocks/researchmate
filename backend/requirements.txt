@@ -1,0 +1,22 @@
+# Core (versions this project was tested with; newer minor versions should work)
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+pydantic>=2.7
+pydantic-settings>=2.3
+pymupdf>=1.24
+python-docx>=1.1
+pylatexenc>=2.10
+pyyaml>=6.0
+jsonschema>=4.22
+google-genai>=1.0
+
+# Optional local ML layer (set ML_ENABLED=false to skip)
+# sentence-transformers
+# scikit-learn
+# joblib
+# numpy
+
+# Dev / tests
+# pytest
+# httpx

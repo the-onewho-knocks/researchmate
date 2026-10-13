@@ -1,4 +1,3 @@
-"""backend/app/services/rules/primitives.py"""
 """Shared helpers, the rule registry, EvalContext and the generic rules."""
 from __future__ import annotations
 

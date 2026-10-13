@@ -1,7 +1,11 @@
 """backend/app/schemas/report.py"""
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
-from app.schemas.verdict import Verdict
+from app.schemas.verdict import Status, Verdict
+
+Level = Literal["low", "medium", "high"]
 
 
 class Usage(BaseModel):
@@ -25,6 +29,31 @@ class ComponentResult(BaseModel):
     verdicts: list[Verdict]
 
 
+class Paragraph(BaseModel):
+    """One block of the paper, for the reading view. `i` matches Verdict.block."""
+
+    i: int
+    text: str
+    kind: str = "text"
+    sections: list[str] = Field(default_factory=list)
+
+
+class TodoItem(BaseModel):
+    """A failing or unresolved criterion, ranked by impact versus effort."""
+
+    id: str
+    name: str
+    component: str
+    component_name: str
+    status: Status
+    effort: Level
+    impact: Level
+    priority: float
+    suggestion: str
+    block: int | None = None
+    section: str | None = None
+
+
 class EvaluationReport(BaseModel):
     document_id: str = ""
     file_type: str = ""
@@ -37,4 +66,6 @@ class EvaluationReport(BaseModel):
     source_counts: dict[str, int] = Field(default_factory=dict)
     usage: Usage = Field(default_factory=Usage)
     coach_feedback: str | None = None
+    paragraphs: list[Paragraph] = Field(default_factory=list)
+    todo: list[TodoItem] = Field(default_factory=list)
     cached: bool = False

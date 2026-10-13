@@ -19,10 +19,13 @@ from app.services.extraction.normalizer import normalize
 from app.services.llm.coach import write_feedback
 from app.services.llm.gemini_client import GeminiClient
 from app.services.llm.judge import JUDGE_GROUPS, GroupInput, judge_group
+from app.services.llm.suggest import suggest_fixes
 from app.services.ml.router import route
 from app.services.ml.section_classifier import SectionClassifier
 from app.services.ml.sentence_roles import SentenceRoleModel
 from app.services.rules.engine import run_rule
+from app.services.report.locator import Locator, build_paragraphs
+from app.services.report.priority import build_todo
 from app.services.rules.primitives import EvalContext, RuleResult, short, split_sentences
 from app.services.scoring.scoring import score_component, score_overall
 from app.services.sections.identifier import identify_sections
@@ -46,6 +49,7 @@ class Services:
     system_prompt: str
     judge_template: str
     coach_template: str
+    suggest_template: str = ""
 
 
 def _v(
@@ -172,12 +176,36 @@ def _escalate(
     return out
 
 
+_MAX_SUGGESTIONS = 12
+
+
+def _suggestions(
+    svc: Services,
+    ctx: EvalContext,
+    results: list[ComponentResult],
+    crit_by_id: dict[str, Criterion],
+    usage: Usage,
+) -> dict[str, tuple[str, str | None]]:
+    """AI fixes for the highest-priority failures (one batched call)."""
+    if not svc.llm.available or not svc.suggest_template:
+        return {}
+    by_id = {v.id: v for c in results for v in c.verdicts}
+    ranked = [t for t in build_todo(results, crit_by_id) if t.status == "fail"][:_MAX_SUGGESTIONS]
+    items = []
+    for t in ranked:
+        crit = crit_by_id[t.id]
+        labels = [t.section or "", *crit.params.get("also", [])]
+        items.append((by_id[t.id], crit, ctx.text_multi([l for l in labels if l])))
+    return suggest_fixes(svc.llm, svc.suggest_template, items, usage)
+
+
 def evaluate_file(
     path: Path,
     file_type: str,
     svc: Services,
     *,
     coach: bool = False,
+    suggest: bool = False,
     document_id: str = "",
 ) -> EvaluationReport:
     s = svc.settings
@@ -219,6 +247,21 @@ def evaluate_file(
             )
         )
     overall, overall_cov = score_overall(results)
+
+    # where each verdict points in the paper, so the UI can show evidence in context
+    crit_by_id = {c.id: c for c in fw.all_criteria()}
+    locator = Locator(doc, smap)
+    for comp, res in zip(fw.components, results):
+        for v in res.verdicts:
+            v.section = crit_by_id[v.id].params.get("section", comp.section)
+            v.block = locator.locate(v, v.section)
+
+    suggestions = _suggestions(svc, ctx, results, crit_by_id, usage) if suggest else {}
+    todo = build_todo(results, crit_by_id, suggestions)
+    text_by_id = {t.id: t.suggestion for t in todo}
+    for res in results:
+        for v in res.verdicts:
+            v.suggestion = text_by_id.get(v.id)
 
     all_verdicts = [v for r in results for v in r.verdicts]
     counts = Counter(v.source for v in all_verdicts if v.status in ("pass", "fail"))
@@ -270,4 +313,6 @@ def evaluate_file(
         source_counts=source_counts,
         usage=usage,
         coach_feedback=feedback,
+        paragraphs=build_paragraphs(doc, smap),
+        todo=todo,
     )

@@ -4,10 +4,12 @@ from fastapi.concurrency import run_in_threadpool
 
 from app.api.deps import get_services
 from app.core.errors import DocumentNotFoundError
+from app.schemas.compare import CompareRequest, Comparison
 from app.schemas.report import EvaluationReport
 from app.schemas.upload import EvaluationRequest
 from app.services.cache.result_cache import file_sha256
 from app.services.orchestrator.pipeline import evaluate_file
+from app.services.report.compare import compare_reports
 
 router = APIRouter(prefix="/evaluations", tags=["evaluations"])
 
@@ -16,6 +18,7 @@ router = APIRouter(prefix="/evaluations", tags=["evaluations"])
 async def create_evaluation(req: EvaluationRequest, svc=Depends(get_services)):
     path, file_type = svc.storage.path_for(req.document_id)
     s = svc.settings
+    suggest = req.suggest and svc.llm.available       # suggestions need the AI judge
 
     key = svc.cache.make_key(
         file_sha256(path),
@@ -24,6 +27,7 @@ async def create_evaluation(req: EvaluationRequest, svc=Depends(get_services)):
         s.gemini_model if svc.llm.available else "no-llm",
         req.coach,
         svc.roles.available,
+        suggest,
     )
 
     cached = svc.cache.get(key)
@@ -32,13 +36,24 @@ async def create_evaluation(req: EvaluationRequest, svc=Depends(get_services)):
         report.cached = True
     else:
         report = await run_in_threadpool(
-            evaluate_file, path, file_type, svc, coach=req.coach, document_id=req.document_id
+            evaluate_file, path, file_type, svc,
+            coach=req.coach, suggest=suggest, document_id=req.document_id,
         )
         svc.cache.set(key, report.model_dump())
 
     report.document_id = req.document_id
     svc.cache.save_report(req.document_id, report.model_dump())
     return report
+
+
+@router.post("/compare", response_model=Comparison)
+async def compare_evaluations(req: CompareRequest, svc=Depends(get_services)):
+    """Diff two evaluated drafts (both reports must still be stored)."""
+    before = svc.cache.load_report(req.before_id)
+    after = svc.cache.load_report(req.after_id)
+    if not before or not after:
+        raise DocumentNotFoundError("One of the evaluations was not found (it may have expired).")
+    return compare_reports(EvaluationReport(**before), EvaluationReport(**after))
 
 
 @router.get("/{document_id}", response_model=EvaluationReport)

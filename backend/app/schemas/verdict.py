@@ -17,3 +17,6 @@ class Verdict(BaseModel):
     confidence: float = 0.0
     source: Source = "rule"
     note: str | None = None
+    section: str | None = None        # section label the criterion is checked in
+    block: int | None = None          # paragraph index to jump to (evidence match, or section start for failures)
+    suggestion: str | None = None     # one concrete fix (set for fail / needs_review)

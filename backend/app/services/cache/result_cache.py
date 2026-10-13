@@ -27,9 +27,11 @@ class ResultCache:
     @staticmethod
     def make_key(
         file_hash: str, framework_version: str, prompt_version: str,
-        model: str, coach: bool, ml: bool,
+        model: str, coach: bool, ml: bool, suggest: bool = False,
     ) -> str:
-        raw = "|".join([file_hash, framework_version, prompt_version, model, str(coach), str(ml)])
+        raw = "|".join(
+            [file_hash, framework_version, prompt_version, model, str(coach), str(ml), str(suggest)]
+        )
         return hashlib.sha256(raw.encode()).hexdigest()
 
     def _path(self, name: str) -> Path:

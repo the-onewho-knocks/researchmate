@@ -67,7 +67,7 @@ components:
     rule: any_pattern
     params: {patterns: ['\bwe (propose|present|investigate|develop|leverage|introduce|use)\b', '\bour (approach|method|idea|framework)\b', '\bthe idea\b', '\bthis paper (proposes|presents|investigates)\b']}
     hint: "Is it stated how the research question is addressed (approach, method, evaluation)?"
-  - {id: W3, name: What's new?, tier: B, rule: intro_novelty_statement, ml_label: novelty_claim, hint: "Are the novelty and the contributions stated?"}
+  - {id: W3, name: "What's new?", tier: B, rule: intro_novelty_statement, ml_label: novelty_claim, hint: "Are the novelty and the contributions stated?"}
 
 - key: methods
   name: Methods

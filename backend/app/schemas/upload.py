@@ -11,3 +11,4 @@ class UploadResponse(BaseModel):
 class EvaluationRequest(BaseModel):
     document_id: str
     coach: bool = False
+    suggest: bool = True      # concrete fix suggestions (one extra AI call, only when the AI judge is on)

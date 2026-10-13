@@ -33,6 +33,7 @@ def build_services(settings: Settings | None = None) -> Services:
         system_prompt=(prompts / "judge_system.md").read_text(encoding="utf-8"),
         judge_template=(prompts / "judge_criterion.md").read_text(encoding="utf-8"),
         coach_template=(prompts / "coach.md").read_text(encoding="utf-8"),
+        suggest_template=(prompts / "suggest.md").read_text(encoding="utf-8"),
     )
 
 
