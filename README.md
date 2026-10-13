@@ -25,6 +25,12 @@ npm install
 npm run dev
 ```
 
+## Machine Learning Model 
+```
+pip install sentence-transformers scikit-learn joblib numpy
+python scripts/check_ml.py
+```
+
 ## Tests
 ```
 cd backend
