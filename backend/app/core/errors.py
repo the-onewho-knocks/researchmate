@@ -44,6 +44,10 @@ class LLMError(Exception):
     """LLM call failed after retries."""
 
 
+class RateLimitError(LLMError):
+    """The provider refused the call because a quota or rate limit was hit."""
+
+
 class OutputValidationError(Exception):
     """LLM output could not be parsed or validated."""
 

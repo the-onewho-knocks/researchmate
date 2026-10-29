@@ -30,6 +30,14 @@ export default function App() {
           <span className={`badge ${health?.llm_available ? "on" : "off"}`}>
             AI judge {health?.llm_available ? "on" : "off"}
           </span>
+          {health?.local_available && (
+            <span className="badge on">local {health.local_model.split("/").pop()}</span>
+          )}
+          {health?.gemini_available && (
+            <span className={`badge ${health.gemini_cooling_down ? "off" : "on"}`}>
+              Gemini {health.gemini_cooling_down ? "cooling down" : `${health.gemini_calls_left_today} left`}
+            </span>
+          )}
           <span className={`badge ${health?.ml_available ? "on" : "off"}`}>
             ML {health?.ml_available ? (health.ml_calibrated ? "trained" : "zero-shot") : "off"}
           </span>

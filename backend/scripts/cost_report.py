@@ -32,6 +32,24 @@ def main() -> None:
 
     print(f"Evaluations: {n}   LLM calls: {calls}")
     print(f"Tokens: {t_in} in / {t_out} out   (avg per evaluation: {t_in // max(n, 1)} / {t_out // max(n, 1)})")
+
+    # Per-provider split (written by pipeline.log_usage as e.g. gemini_calls/local_calls)
+    providers: dict[str, dict[str, int]] = {}
+    for r in rows:
+        for key, value in r.items():
+            if not key.endswith("_calls") or key == "llm_calls":
+                continue
+            name = key[: -len("_calls")]
+            slot = providers.setdefault(name, {"calls": 0, "in": 0, "out": 0})
+            slot["calls"] += value
+            slot["in"] += r.get(f"{name}_input_tokens", 0)
+            slot["out"] += r.get(f"{name}_output_tokens", 0)
+    if providers:
+        print("LLM calls by provider:")
+        for name, slot in sorted(providers.items()):
+            share = slot["calls"] / max(calls, 1)
+            print(f"  {name:10} {slot['calls']:4} calls ({share:.0%})  {slot['in']} in / {slot['out']} out")
+
     print("Verdicts by source:")
     for k, v in by_src.items():
         share = f" ({v / decided:.0%} of decided)" if k != "unresolved" else ""

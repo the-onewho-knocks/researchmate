@@ -24,7 +24,9 @@ def main() -> None:
 
     svc = get_services()
     if args.no_llm:
-        svc.llm.api_key = ""
+        svc.llm.gemini.api_key = ""
+        if svc.llm.local is not None:
+            svc.llm.local.enabled = False
 
     truth: dict[str, dict[str, bool]] = defaultdict(dict)
     with open(args.labels_csv, newline="", encoding="utf-8") as f:

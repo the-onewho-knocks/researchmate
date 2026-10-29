@@ -126,6 +126,16 @@ export default function ReportPage({
             <p className="usage">
               {report.usage.calls} AI calls · {report.usage.input_tokens} in / {report.usage.output_tokens} out
               tokens · {report.usage.model}
+              {report.usage.by_provider && Object.keys(report.usage.by_provider).length > 1 && (
+                <>
+                  {" "}
+                  (
+                  {Object.entries(report.usage.by_provider)
+                    .map(([name, u]) => `${name}: ${u.calls}`)
+                    .join(" · ")}
+                  )
+                </>
+              )}
             </p>
           )}
         </div>

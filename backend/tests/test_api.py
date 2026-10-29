@@ -16,6 +16,7 @@ def _verdicts(report):
 def test_health_and_framework(client):
     h = client.get("/api/health").json()
     assert h["status"] == "ok" and h["llm_available"] is False
+    assert h["gemini_available"] is False and h["local_available"] is False
     fw = client.get("/api/framework").json()
     assert len(fw["components"]) == 9
     assert "params" not in fw["components"][0]["criteria"][0]      # rule parameters stay server-side

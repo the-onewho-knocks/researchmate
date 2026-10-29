@@ -6,11 +6,11 @@ import re
 
 from pydantic import BaseModel
 
-from app.core.errors import LLMError
+from app.core.errors import LLMError, RateLimitError
 from app.schemas.framework import Criterion
 from app.schemas.report import Usage
 from app.schemas.verdict import Verdict
-from app.services.llm.gemini_client import GeminiClient
+from app.services.llm.base import LLMClient
 from app.services.llm.token_budget import trim_to_tokens
 from app.services.report.priority import VALID_LEVELS
 
@@ -29,6 +29,12 @@ class SuggestionSchema(BaseModel):
     id: str
     suggestion: str
     effort: str
+
+
+class LocalSuggestionResponse(BaseModel):
+    """Same items, wrapped in one object for grammar-constrained local decoding."""
+
+    results: list[SuggestionSchema]
 
 
 def build_prompt(template: str, items: list[tuple[Verdict, Criterion, str]]) -> tuple[str, list[str]]:
@@ -72,7 +78,7 @@ def parse_suggestions(text: str, expected: set[str]) -> dict[str, tuple[str, str
 
 
 def suggest_fixes(
-    client: GeminiClient,
+    client: LLMClient,
     template: str,
     items: list[tuple[Verdict, Criterion, str]],
     usage: Usage,
@@ -80,11 +86,18 @@ def suggest_fixes(
     if not client.available or not items:
         return {}
     prompt, ids = build_prompt(template, items)
+    provider = getattr(client, "name", "gemini")
+    is_local = provider == "local"
+    schema = LocalSuggestionResponse if is_local else list[SuggestionSchema]
     max_tokens = min(2500, 200 + 110 * len(ids))
+    if is_local:
+        max_tokens = min(1200, 80 + 90 * len(ids))
     try:
-        res = client.generate_json(SYSTEM, prompt, list[SuggestionSchema], max_tokens)
+        res = client.generate_json(SYSTEM, prompt, schema, max_tokens)
+    except RateLimitError:
+        raise
     except LLMError as exc:
-        log.warning("Suggestion call failed: %s", exc)
+        log.warning("Suggestion call failed (%s): %s", provider, exc)
         return {}
-    usage.add(res.input_tokens, res.output_tokens)
+    usage.add(res.input_tokens, res.output_tokens, provider)
     return parse_suggestions(res.text, set(ids))

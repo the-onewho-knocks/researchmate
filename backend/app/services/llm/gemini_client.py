@@ -1,22 +1,27 @@
 """backend/app/services/llm/gemini_client.py"""
-"""The only provider-specific file. Swap the model or provider here and nowhere else."""
+"""Gemini provider. Swap the model here and nowhere else."""
 import logging
 import time
-from dataclasses import dataclass
 
-from app.core.errors import LLMError
+from app.core.errors import LLMError, RateLimitError
+
+from .base import LLMResult
 
 log = logging.getLogger(__name__)
 
+__all__ = ["GeminiClient", "LLMResult"]
 
-@dataclass
-class LLMResult:
-    text: str
-    input_tokens: int
-    output_tokens: int
+
+def _is_rate_limit(exc: Exception) -> bool:
+    code = getattr(exc, "code", None)
+    if code == 429 or getattr(exc, "status_code", None) == 429:
+        return True
+    return "429" in str(exc) or "RESOURCE_EXHAUSTED" in str(exc)
 
 
 class GeminiClient:
+    name = "gemini"
+
     def __init__(
         self,
         api_key: str,
@@ -80,6 +85,10 @@ class GeminiClient:
                 return LLMResult(resp.text or "", n_in, n_out)
             except Exception as exc:
                 last = exc
+                if _is_rate_limit(exc):
+                    # Retrying immediately only burns more quota; let the policy fall back.
+                    log.warning("Gemini rate limit hit: %s", exc)
+                    raise RateLimitError(f"Gemini rate limit: {exc}") from exc
                 log.warning("Gemini call failed (attempt %d/%d): %s", attempt + 1, self.retries, exc)
                 if attempt < self.retries - 1:
                     time.sleep(2**attempt)

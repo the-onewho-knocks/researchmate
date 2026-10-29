@@ -12,6 +12,7 @@ export interface Verdict {
   evidence: string | null;
   confidence: number;
   source: Source;
+  provider: string | null;
   note: string | null;
   section: string | null;
   block: number | null;
@@ -32,6 +33,7 @@ export interface Usage {
   input_tokens: number;
   output_tokens: number;
   model: string;
+  by_provider?: Record<string, { calls: number; input_tokens: number; output_tokens: number }>;
 }
 
 export interface Paragraph {
@@ -121,6 +123,11 @@ export interface UploadResponse {
 export interface Health {
   status: string;
   llm_available: boolean;
+  gemini_available: boolean;
+  local_available: boolean;
+  local_model: string;
+  gemini_cooling_down: boolean;
+  gemini_calls_left_today: number;
   ml_available: boolean;
   ml_calibrated: boolean;
   framework_version: string;

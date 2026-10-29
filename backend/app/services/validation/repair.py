@@ -1,5 +1,5 @@
 """backend/app/services/validation/repair.py"""
-from app.core.errors import LLMError
+from app.core.errors import LLMError, RateLimitError
 from app.schemas.report import Usage
 
 
@@ -12,7 +12,9 @@ def repair_once(client, system: str, prompt: str, bad_output: str, error: str, s
     )
     try:
         res = client.generate_json(system, fix_prompt, schema, max_tokens)
+    except RateLimitError:
+        raise
     except LLMError:
         return None
-    usage.add(res.input_tokens, res.output_tokens)
+    usage.add(res.input_tokens, res.output_tokens, getattr(client, "name", "gemini"))
     return res.text

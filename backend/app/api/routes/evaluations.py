@@ -24,7 +24,7 @@ async def create_evaluation(req: EvaluationRequest, svc=Depends(get_services)):
         file_sha256(path),
         svc.framework.version,
         s.prompt_version,
-        s.gemini_model if svc.llm.available else "no-llm",
+        svc.llm.cache_key(),
         req.coach,
         svc.roles.available,
         suggest,

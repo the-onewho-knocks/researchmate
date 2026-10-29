@@ -16,6 +16,7 @@ class Verdict(BaseModel):
     evidence: str | None = None
     confidence: float = 0.0
     source: Source = "rule"
+    provider: str | None = None        # which LLM backend judged it ("gemini" / "local")
     note: str | None = None
     section: str | None = None        # section label the criterion is checked in
     block: int | None = None          # paragraph index to jump to (evidence match, or section start for failures)

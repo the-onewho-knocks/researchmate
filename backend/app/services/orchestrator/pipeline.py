@@ -16,10 +16,8 @@ from app.schemas.verdict import Verdict
 from app.services.cache.result_cache import ResultCache
 from app.services.extraction.factory import get_extractor
 from app.services.extraction.normalizer import normalize
-from app.services.llm.coach import write_feedback
-from app.services.llm.gemini_client import GeminiClient
-from app.services.llm.judge import JUDGE_GROUPS, GroupInput, judge_group
-from app.services.llm.suggest import suggest_fixes
+from app.services.llm.judge import JUDGE_GROUPS, GroupInput
+from app.services.llm.policy import LLMPolicy
 from app.services.ml.router import route
 from app.services.ml.section_classifier import SectionClassifier
 from app.services.ml.sentence_roles import SentenceRoleModel
@@ -41,7 +39,7 @@ log = logging.getLogger(__name__)
 class Services:
     settings: Settings
     framework: Framework
-    llm: GeminiClient
+    llm: LLMPolicy
     roles: SentenceRoleModel
     section_clf: SectionClassifier
     storage: UploadStorage
@@ -50,6 +48,7 @@ class Services:
     judge_template: str
     coach_template: str
     suggest_template: str = ""
+    local_system_prompt: str = ""
 
 
 def _v(
@@ -149,8 +148,15 @@ def _escalate(
     if not out or not svc.llm.available:
         return out
 
+    # The local model has a small VRAM budget, so its context is capped tighter.
+    context_cap = (
+        svc.settings.local_llm_context_max_chars
+        if svc.llm.local_available
+        else svc.settings.context_max_chars
+    )
+
+    items: list[GroupInput] = []
     for group in JUDGE_GROUPS:
-        items: list[GroupInput] = []
         for key in group:
             plist = pending.get(key)
             if not plist:
@@ -166,13 +172,21 @@ def _escalate(
                 continue
             context = select_context(
                 text, [p.criterion for p in plist], svc.roles.embedder,
-                max_chars=svc.settings.context_max_chars,
+                max_chars=context_cap,
             )
             items.append(GroupInput(comp, plist, context))
-        if items:
-            out.update(
-                judge_group(svc.llm, svc.system_prompt, svc.judge_template, items, usage, svc.settings)
+
+    if items:
+        out.update(
+            svc.llm.judge(
+                items,
+                system=svc.system_prompt,
+                local_system=svc.local_system_prompt,
+                template=svc.judge_template,
+                usage=usage,
+                settings=svc.settings,
             )
+        )
     return out
 
 
@@ -196,7 +210,7 @@ def _suggestions(
         crit = crit_by_id[t.id]
         labels = [t.section or "", *crit.params.get("also", [])]
         items.append((by_id[t.id], crit, ctx.text_multi([l for l in labels if l])))
-    return suggest_fixes(svc.llm, svc.suggest_template, items, usage)
+    return svc.llm.suggest(svc.suggest_template, items, usage)
 
 
 def evaluate_file(
@@ -278,6 +292,14 @@ def evaluate_file(
     ]
     if not svc.llm.available:
         limitations.append("The AI judge is not configured, so judgment criteria are marked 'needs review'.")
+    elif svc.llm.local_available and svc.llm.gemini_available:
+        limitations.append(
+            "Most judgment checks ran on the local model; the highest-impact ones were reviewed by Gemini."
+        )
+    elif svc.llm.local_available:
+        limitations.append(
+            "All judgment checks ran on the local model, because the Gemini judge is not configured."
+        )
     if smap.low_confidence:
         limitations.append("Section structure was hard to detect; results may be unreliable.")
     if doc.meta.get("bib_external"):
@@ -286,7 +308,7 @@ def evaluate_file(
         limitations.append("Word files rely on heading styles for structure and have no reliable page count.")
     limitations.extend(smap.notes)
 
-    feedback = write_feedback(svc.llm, svc.coach_template, all_verdicts, usage) if coach else None
+    feedback = svc.llm.coach(svc.coach_template, all_verdicts, usage) if coach else None
 
     log_usage(
         s.data_dir,
@@ -297,6 +319,11 @@ def evaluate_file(
             "llm_calls": usage.calls,
             "input_tokens": usage.input_tokens,
             "output_tokens": usage.output_tokens,
+            **{
+                f"{name}_{key}": getattr(slot, key)
+                for name, slot in usage.by_provider.items()
+                for key in ("calls", "input_tokens", "output_tokens")
+            },
             **{f"n_{k}": v for k, v in source_counts.items()},
         },
     )

@@ -8,16 +8,27 @@ from app.schemas.verdict import Status, Verdict
 Level = Literal["low", "medium", "high"]
 
 
+class ProviderUsage(BaseModel):
+    calls: int = 0
+    input_tokens: int = 0
+    output_tokens: int = 0
+
+
 class Usage(BaseModel):
     calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0
     model: str = ""
+    by_provider: dict[str, ProviderUsage] = Field(default_factory=dict)
 
-    def add(self, input_tokens: int, output_tokens: int) -> None:
+    def add(self, input_tokens: int, output_tokens: int, provider: str = "gemini") -> None:
         self.calls += 1
         self.input_tokens += input_tokens
         self.output_tokens += output_tokens
+        slot = self.by_provider.setdefault(provider, ProviderUsage())
+        slot.calls += 1
+        slot.input_tokens += input_tokens
+        slot.output_tokens += output_tokens
 
 
 class ComponentResult(BaseModel):

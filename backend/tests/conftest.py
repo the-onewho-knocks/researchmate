@@ -185,6 +185,7 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setenv("DATA_DIR", str(tmp_path / "data"))
     monkeypatch.setenv("GEMINI_API_KEY", "")
     monkeypatch.setenv("ML_ENABLED", "false")
+    monkeypatch.setenv("LOCAL_LLM_ENABLED", "false")
 
     from app.api.deps import get_services
     from app.core.config import get_settings
